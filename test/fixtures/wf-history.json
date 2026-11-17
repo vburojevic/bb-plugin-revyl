@@ -1,0 +1,18 @@
+{
+  "average_duration": 200.2812,
+  "executions": [
+    {
+      "completed_tests": 2,
+      "duration": "3m 20s",
+      "execution_id": "b69a5120-87d3-4ef3-8105-0f60c5bcb9b7",
+      "index": 1,
+      "started_at": "2026-11-16T19:59:42.131892+00:00",
+      "status": "failed",
+      "total_tests": 2
+    }
+  ],
+  "success_rate": 0,
+  "total_count": 1,
+  "workflow_id": "b7056700-2c73-45b5-8360-c8aa48c7dbb8",
+  "workflow_name": "smoke"
+}

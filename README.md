@@ -1,0 +1,240 @@
+<div align="center">
+
+<img src="assets/revyl-tile.svg" width="64" height="64" alt="">
+
+# Revyl for bb
+
+**Your agent builds, tests and drives your iOS app on Revyl's cloud,<br>and you watch the device beside the chat.**
+
+Turn on Test on Revyl for a [bb](https://getbb.app) thread. Its agent builds on [Revyl](https://revyl.com)'s runners,<br>proves the change with Revyl tests, and works a cloud device you can watch and touch.
+
+<a href="https://github.com/vburojevic/bb-plugin-revyl/releases/latest"><img src="https://img.shields.io/github/v/release/vburojevic/bb-plugin-revyl?style=flat-square&color=57606a&label=release" alt="Latest release"></a>
+<a href="https://getbb.app"><img src="https://img.shields.io/badge/bb-%E2%89%A5%200.49-57606a?style=flat-square" alt="Requires bb 0.49 or newer"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-57606a?style=flat-square" alt="MIT license"></a>
+<a href="https://github.com/get-bb/marketplace"><img src="https://img.shields.io/badge/BB%20Community-marketplace-57606a?style=flat-square" alt="Submitted to the BB Community marketplace"></a>
+
+</div>
+
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/hero-dark.png">
+  <img src="assets/screenshots/hero.png" width="100%" alt="A bb thread with Test on Revyl on: the agent's reply with pinned Revyl results, the collapsed Revyl run card above the composer, and the thread's cloud iPhone live in the side panel">
+</picture>
+
+<p align="center"><sub>Every screenshot on this page is a real bb window and a real Revyl org (its name and email replaced), shot against a throwaway demo app.</sub></p>
+
+> [!NOTE]
+> Unofficial. This plugin is not made by, affiliated with or endorsed by Revyl. The Revyl name and mark belong to Revyl.
+
+## Install
+
+```sh
+bb plugin install git:https://github.com/vburojevic/bb-plugin-revyl.git
+```
+
+> [!NOTE]
+> Requires bb 0.49 or newer, a Revyl account (verified on the free plan) and the Revyl CLI (tested with 0.2.12). Works in Claude Code, Codex and Cursor threads.
+
+Then:
+
+1. Install the Revyl CLI on the machine that runs the bb server, and on any other bb machine whose threads use Revyl: `brew install RevylAI/tap/revyl`, or see [Revyl's install guide](https://docs.revyl.com/install).
+2. Open the **Revyl** page (the Revyl mark in bb's left rail) and paste an API key from [app.revyl.ai](https://app.revyl.ai), Settings, API Keys. It stays on the bb server.
+3. In a thread of an iOS project, turn on the Revyl mark button in the composer (its tooltip reads Test on Revyl), and ask the agent to change something and prove it.
+
+> [!TIP]
+> bb shows up to three plugin buttons in the composer, the ones you click most. If Revyl's isn't one of them, it's in the **More plugin actions** menu, where it reads "Test on Revyl" with its On or Off state.
+>
+> The plugin also ships a `revyl` skill, so an agent that is asked about Revyl reads how Test on Revyl works before it acts.
+
+## Highlights
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Test on Revyl, per thread**<br>
+One button in the composer. With it on, the thread's agent (Claude Code, Codex or Cursor) builds, tests and runs iOS apps only on Revyl, never on a local simulator.
+
+</td>
+<td width="50%" valign="top">
+
+**Builds and tests above the composer**<br>
+Every cloud build and test run shows live, then passes or fails. A failed build names its profile, the step that broke and Revyl's error.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**The device beside the chat**<br>
+When the agent starts a cloud device, the device pane opens by itself while the thread is open, and streams it live, with each thing the agent does listed as it happens. Take over with tap, swipe and type when the agent is idle.
+
+</td>
+<td width="50%" valign="top">
+
+**Reports with video and steps**<br>
+Open any run for its recording with a step timeline, each step's screenshot and reasoning, and Revyl's summary.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Proof in the reply**<br>
+`::revyl{task="…"}` pins a live result card in the agent's answer, and `::revyl{device="…" shot="…"}` pins the screen it saw.
+
+</td>
+<td width="50%" valign="top">
+
+**The key never reaches an agent**<br>
+Agents get a token for their own thread. A proxy on the bb server adds the key and allows one device and one build at a time. Archiving or deleting a thread stops what it left running.
+
+</td>
+</tr>
+</table>
+
+## Builds and runs above the composer
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/runs-dark.png">
+  <img src="assets/screenshots/runs.png" width="100%" alt="The Revyl card above the composer: two test runs, a unit-tests build that failed with its error line, and two development builds that passed">
+</picture>
+
+Each row is one cloud build, test or workflow run: queued, step 2 of 5, passed or failed, with how long it took and how long ago. Each build is named by its profile, such as `development build` or `unit-tests build`, and a failed one shows Revyl's error and suggested fix in full. Open a run's report, run it again on the same build, or cancel it. Starting a run from bb asks first, because it uses Revyl device minutes.
+
+## The device pane
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/device-live-dark.png">
+  <img src="assets/screenshots/device-live.png" width="100%" alt="The device pane streaming a cloud iPhone live, with the agent's latest action under the title">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/device-ended-dark.png">
+  <img src="assets/screenshots/device-ended.png" width="100%" alt="The device pane after the agent stopped the device: the last screen, the agent's actions, and how it ended">
+</picture>
+
+</td>
+</tr>
+</table>
+
+Agents start devices without a browser, so this pane is how you see them. It opens by itself once per device while the thread is open in bb, and follows the thread's device: the app, build and branch, how long it has run, and each tap, swipe, screenshot and keystroke the agent sends (never the text it types). When the agent is idle, click to tap, drag to swipe, and type into the field you tapped. After the device stops, the pane keeps its last screen and says how it ended: stopped by the agent, from bb, after sitting idle, or with the thread.
+
+## Reports
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/report-dark.png">
+  <img src="assets/screenshots/report.png" width="100%" alt="A test report in the side panel: the run's video, Revyl's summary and the steps with their timestamps">
+</picture>
+
+A run's recording with a step timeline: click a step to jump the video there, read the reasoning behind each action, and see Revyl's summary of what the test proved. Workflows list their tests, each with its own report.
+
+## Proof in the reply
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/replies-dark.png">
+  <img src="assets/screenshots/replies.png" width="100%" alt="The agent's reply with two pinned test results and a pinned screenshot of the cloud device">
+</picture>
+
+The agent pins its evidence where you read its answer. A test card stays live until the run finishes and opens the report. A device card shows the screenshot the agent took, kept even after the device is gone. `bb revyl runs` prints the exact lines to paste.
+
+## The Revyl page
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/page-dark.png">
+  <img src="assets/screenshots/page.png" width="100%" alt="The Revyl page: workflows and tests of a project, a test's recent runs, and a report open on the right">
+</picture>
+
+Browse the tests and workflows of a project whose repo has Revyl files, or of the whole org. Open one for its recent runs, read any report, and run it.
+
+## How it works
+
+```mermaid
+flowchart LR
+  A["agent's revyl CLI<br>token for one thread"] --> P["bb server<br>the plugin's proxy"]
+  P -->|adds the key| R["backend.revyl.ai"]
+  P -.->|records| C["run cards, device pane,<br>reply cards"]
+```
+
+- **The key stays on the bb server.** A thread with Test on Revyl on gets `REVYL_BACKEND_URL`, pointing at the plugin's proxy route, and `REVYL_API_KEY`, a token that works only through that proxy and only for that thread. bb shows a thread's environment in its timeline, so the real key never goes into it. Revyl's account endpoint returns the key, so the proxy replaces it in every reply.
+- **Each thread acts only on its own work.** The proxy allows a thread the devices, runs and builds it started, one cloud device and one cloud build at a time, and cuts Revyl's org-wide device lists down to the thread's own.
+- **Build, test and run only on Revyl.** The agent's instructions say to build with `revyl build` on Revyl's runners (it uploads the working tree, uncommitted changes included), prove changes with Revyl tests, write and push a test when none covers the change, set up Revyl in a repo that has none, and never use local `xcodebuild`, simulators or emulators for iOS and Android. macOS targets still build locally. Build secrets are asked for one at a time, through bb's secure input.
+- **No forgotten devices.** Archiving or deleting a thread stops its devices and cancels its running tests and builds.
+- **Other bb machines.** Their threads reach Revyl through the same proxy (not verified yet). Each needs the `revyl` CLI but no Revyl sign-in.
+- **New threads.** The button in the new-thread composer marks the selected project for 30 minutes; the first message you send in a new thread there switches that thread on before its agent starts.
+- **Mid-thread.** Flipping the button in a running thread takes effect on the agent's next turn (verified with Claude Code), and adds a one-line note to your next message, because an agent's standing instructions only reload when its session restarts.
+- **Fleets.** An orchestrating agent switches a worker on with `bb revyl mode on --thread <worker>`, which applies from the worker's next turn. `--project <id>` applies only to a new thread a person starts. A thread cannot switch itself on or off with that command.
+
+## Commands
+
+```text
+bb revyl status                      connection, and whether this thread tests on Revyl
+bb revyl runs                        this thread's builds, runs and device, with ::revyl lines
+bb revyl mode on|off                 switch a thread (--thread <id>), or a project's next new thread (--project <id>)
+bb revyl connect --key-file <path>   connect with a key read from a file on the bb server's machine
+bb revyl disconnect                  forget the key
+```
+
+Every command takes `--json`. A failed build in `bb revyl runs` reads like this:
+
+```text
+build Tasklet (profile unit-tests): failed
+  job 111183f1-d627-4934-ad4f-c5b55be01b33 · branch main
+  failed step: bash -c 'echo 2 of 14 TaskletTests failed; exit 65'
+  error: bash -c 'echo 2 of 14 TaskletTests failed; exit 65' failed with exit code 65
+```
+
+## Settings
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/settings-dark.png">
+  <img src="assets/screenshots/settings.png" width="100%" alt="Revyl's settings in bb: the API key, the CLI path, the device idle timeout, and the connected account">
+</picture>
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| Revyl API key | empty | Kept in bb's secret settings on the bb server. Agents and browsers never see it. |
+| Revyl CLI path | empty | Leave empty to find `revyl` on PATH, in `~/.revyl/bin`, `/opt/homebrew/bin` or `/usr/local/bin`. |
+| Device idle timeout | 10 minutes | A device started from bb stops after this long without input. |
+
+## Privacy and safety
+
+- The real key lives only in the plugin's secret settings on the bb server. The plugin's own CLI calls use it with a private auth folder, never a sign-in stored on the machine. If the bb server's machine has its own `revyl auth` sign-in, the plugin warns, because agents there could use it to skip the per-thread limits.
+- Report media links expire after an hour and are fetched fresh, never stored. The device stream URL is used only in the pane and never logged.
+- For the device pane, the proxy records each action and its point. It never keeps typed text, its length or an instruction step's text, and keeps only a link's host. It keeps the agent's screenshots in the plugin's database: the latest 12 of each of the thread's 10 latest devices, plus up to 24 per device that replies show. Archiving a thread keeps only those; deleting it removes them all.
+- `revyl device` writes a session file into `.revyl/` of the folder it runs in. The plugin runs its own device commands in a temporary folder. When the agent runs `revyl device` in your repo, the file lands in `.revyl/`, which Revyl's `.revyl/.gitignore` keeps out of git.
+- The switch keeps out agents that follow their instructions. bb lets any process on the bb server's machine call a plugin's controls, so it does not stop a determined one.
+
+## Limitations
+
+- Verified on iOS with the bb server's own machine. Android and threads on other bb machines use the same paths but are not verified yet; the agent's instructions cover iOS builds.
+- Test on Revyl sets up `revyl` for Claude Code, Codex and Cursor threads. Other agents get no token.
+- Revyl refuses a source archive over 500 MB, and `revyl build` cannot leave paths out. The agent is told to build a repo with large tracked files from a slim copy.
+- In a sandboxed agent shell, such as Claude Code's sandbox, Revyl's uploads fail a certificate check, so the agent has to run `revyl` outside the sandbox.
+- Each tap or swipe from the pane lands one to two seconds after the click.
+- The proxy relies on `REVYL_BACKEND_URL`, which the Revyl CLI reads but Revyl does not document. Tested with revyl 0.2.12.
+
+## Development
+
+```sh
+npm install
+npm test            # unit tests: the proxy, run tracking, device actions, stills, formatting
+npm run typecheck
+bb plugin build
+```
+
+`docs/verified.md` records what the Revyl CLI and API actually returned against a live account. `demo/ios` is the small SwiftUI app the screenshots and checks use.
+
+## More bb plugins
+
+See every bb plugin I publish at [**vburojevic/bb-plugins**](https://github.com/vburojevic/bb-plugins).
+
+<p align="center"><sub>Built by <a href="https://github.com/vburojevic">Vedran Burojević</a> · <a href="LICENSE">MIT</a></sub></p>

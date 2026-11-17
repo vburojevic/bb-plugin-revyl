@@ -1,0 +1,16 @@
+{
+  "apps": [
+    {
+      "auto_git_branch_enabled": true,
+      "default_branch_id": "af197cc4-15cd-4f2c-8998-bbc76ade6179",
+      "default_branch_name": "base",
+      "id": "7754f7c5-5392-4c19-8a8d-6dc3c761663c",
+      "name": "Tasklet (bb plugin demo)",
+      "platform": "iOS",
+      "latest_version": "1.0.1",
+      "versions_count": 1
+    }
+  ],
+  "count": 1,
+  "total": 1
+}

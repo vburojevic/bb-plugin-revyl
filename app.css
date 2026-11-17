@@ -1,0 +1,35 @@
+/*
+ * Authored rules only. Utilities in the components cover layout; anything with
+ * a comma-separated function or that may sit on a scope root lives here.
+ * Colors always resolve through host theme tokens.
+ */
+
+.bbrv-stream-frame {
+  background: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.bbrv-touch-pending {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 9999px;
+  border: 2px solid var(--primary);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  pointer-events: none;
+  animation: bbrv-pulse 0.9s ease-out infinite;
+}
+
+@keyframes bbrv-pulse {
+  from { transform: scale(0.7); opacity: 1; }
+  to { transform: scale(1.4); opacity: 0.2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bbrv-touch-pending { animation: none; }
+}
+
+.bbrv-step-active {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}

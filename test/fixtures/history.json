@@ -1,0 +1,28 @@
+{
+  "has_more": false,
+  "items": [
+    {
+      "branch_id": "af197cc4-15cd-4f2c-8998-bbc76ade6179",
+      "branch_name": "base",
+      "build_id": "770146d5-068d-4ba3-860b-6e666b83ee46",
+      "build_version": "1.0.1",
+      "duration": 69.54706,
+      "duration_formatted": "1m 9s",
+      "execution_time": "2026-11-16T19:53:14.995623Z",
+      "has_report": true,
+      "id": "4b7cf45d-f38c-4660-8229-3aca79d13747",
+      "index": 1,
+      "started_at": "2026-11-16T19:53:14.995623Z",
+      "status": "completed",
+      "steps_completed": 5,
+      "success": true,
+      "task_id": "4b7cf45d-f38c-4660-8229-3aca79d13747",
+      "total_steps": 5
+    }
+  ],
+  "offset": 0,
+  "shown_count": 1,
+  "test_id": "0506d330-37a9-4266-8802-e647df9d66a0",
+  "test_name": "add-task",
+  "total_count": 1
+}
