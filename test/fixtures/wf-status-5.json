@@ -1,0 +1,45 @@
+{
+  "completed_tests": 0,
+  "duration": "1m 9s",
+  "execution_id": "b69a5120-87d3-4ef3-8105-0f60c5bcb9b7",
+  "failed_tests": 0,
+  "passed_tests": 0,
+  "progress": 0,
+  "report_url": "https://app.revyl.ai/workflows/report?taskId=b69a5120-87d3-4ef3-8105-0f60c5bcb9b7",
+  "started_at": "2026-11-16T19:59:42.131892+00:00",
+  "status": "running",
+  "tests": [
+    {
+      "auto_git_branch_enabled": true,
+      "id": "fc48ceb6-347f-4c5b-875d-94fdb5929eb6",
+      "test_id": "0506d330-37a9-4266-8802-e647df9d66a0",
+      "session_id": "fed0bb34-cf6c-49fc-84b4-5828e82b3caf",
+      "status": "running",
+      "app_id": "7754f7c5-5392-4c19-8a8d-6dc3c761663c",
+      "app_name": "Tasklet (bb plugin demo)",
+      "build_id": "770146d5-068d-4ba3-860b-6e666b83ee46",
+      "build_version": "1.0.1",
+      "branch_id": "af197cc4-15cd-4f2c-8998-bbc76ade6179",
+      "branch_name": "base",
+      "branch_source": "default_branch",
+      "git_branch_name": "main"
+    },
+    {
+      "auto_git_branch_enabled": true,
+      "id": "2b4ca72f-ccf3-446f-8cee-d8a1b5290aec",
+      "test_id": "aa12e15d-89b3-4ad5-8bc8-6b9ca2c2c6ec",
+      "session_id": "79f1bc29-c545-4d56-8c11-5e9d273f6b87",
+      "status": "running",
+      "app_id": "7754f7c5-5392-4c19-8a8d-6dc3c761663c",
+      "app_name": "Tasklet (bb plugin demo)",
+      "build_id": "770146d5-068d-4ba3-860b-6e666b83ee46",
+      "build_version": "1.0.1",
+      "branch_id": "af197cc4-15cd-4f2c-8998-bbc76ade6179",
+      "branch_name": "base",
+      "branch_source": "default_branch",
+      "git_branch_name": "main"
+    }
+  ],
+  "total_tests": 2,
+  "workflow_id": "b7056700-2c73-45b5-8360-c8aa48c7dbb8"
+}

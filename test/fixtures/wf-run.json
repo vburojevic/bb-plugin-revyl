@@ -1,0 +1,16 @@
+{
+  "completed_tests": 0,
+  "duration": "",
+  "error": "",
+  "failed_tests": 0,
+  "passed_tests": 0,
+  "queued": true,
+  "report_link": "https://app.revyl.ai/workflows/report?taskId=b69a5120-87d3-4ef3-8105-0f60c5bcb9b7",
+  "status": "queued",
+  "success": true,
+  "task_id": "b69a5120-87d3-4ef3-8105-0f60c5bcb9b7",
+  "tests": [],
+  "total_tests": 0,
+  "workflow_id": "b7056700-2c73-45b5-8360-c8aa48c7dbb8",
+  "workflow_name": "smoke"
+}

@@ -1,0 +1,26 @@
+{
+  "auto_git_branch_enabled": true,
+  "branch_source": "default_branch",
+  "build_id": "770146d5-068d-4ba3-860b-6e666b83ee46",
+  "branch_id": "af197cc4-15cd-4f2c-8998-bbc76ade6179",
+  "branch_name": "base",
+  "index": 0,
+  "session_id": "0b100112-8751-4869-8e7e-7b1f48051365",
+  "workflow_run_id": "cd26accb-1e3f-4a03-8f29-4ea5bdfd22db",
+  "trace_id": "fixture",
+  "worker_base_url": "https://worker.example.invalid",
+  "viewer_url": "https://app.revyl.ai/sessions/0b100112-8751-4869-8e7e-7b1f48051365",
+  "platform": "ios",
+  "screen_width": 440,
+  "screen_height": 956,
+  "device_ready": true,
+  "started_at": "2026-11-16T20:58:47.314127+01:00",
+  "last_activity": "2026-11-16T20:58:47.314127+01:00",
+  "idle_timeout": 600000000000,
+  "computer_session_id": null,
+  "queue_notice": {
+    "devices": 2,
+    "message": "Queued: all 2 devices are busy. This starts when one is free.",
+    "next_step": "Agents: this run starts when a device is free. Wait for it. Do not start it again."
+  }
+}
