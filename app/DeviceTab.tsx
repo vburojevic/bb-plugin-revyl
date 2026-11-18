@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { RevylApp, Session } from "../src/model";
@@ -80,6 +81,27 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
   const [apps, setApps] = useState<RevylApp[] | null>(null);
   const [appsError, setAppsError] = useState<string | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
+  const [targets, setTargets] = useState<{ ios: Array<{ model: string; os: string }>; android: Array<{ model: string; os: string }> } | null>(null);
+  // "default", or "<platform>|<model>|<os>".
+  const [choice, setChoice] = useState("default");
+
+  useEffect(() => {
+    let cancelled = false;
+    rpc.call("device_targets", {}).then(
+      (value) => !cancelled && setTargets(value),
+      () => !cancelled && setTargets({ ios: [], android: [] }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc]);
+
+  const targetFor = (app: RevylApp) => {
+    if (choice === "default") return {};
+    const [platform, model, os] = choice.split("|");
+    // A model of the other platform does not apply to this app: start Revyl's default.
+    return platform === (app.platform ?? "ios").toLowerCase() ? { deviceModel: model, osVersion: os } : {};
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +118,7 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
     setStarting(app.id);
     try {
       // The pane follows the thread, so the new device shows here by itself.
-      await rpc.call("session_start", { threadId, appId: app.id });
+      await rpc.call("session_start", { threadId, appId: app.id, ...targetFor(app) });
     } catch (cause) {
       toast.error(errorMessage(cause));
     } finally {
@@ -106,7 +128,24 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
 
   return (
     <section className="space-y-2">
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</h3>
+        {targets !== null && targets.ios.length + targets.android.length > 0 ? (
+          <Select value={choice} onValueChange={setChoice}>
+            <SelectTrigger className="h-8 w-56" aria-label="Device to start">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Revyl's default device</SelectItem>
+              {[...targets.ios.map((target) => ({ ...target, platform: "ios" })), ...targets.android.map((target) => ({ ...target, platform: "android" }))].map((target) => (
+                <SelectItem key={`${target.platform}|${target.model}|${target.os}`} value={`${target.platform}|${target.model}|${target.os}`}>
+                  {target.model} · {target.os}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+      </div>
       {apps === null ? (
         appsError === null ? (
           <Skeleton className="h-10 w-full" />
@@ -127,6 +166,7 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
                 </p>
               </div>
               <ConfirmSpend
+                spends
                 title={`Start a device for ${app.name}?`}
                 description={`${MINUTES_NOTE} It stops when you press Stop or after it sits idle.`}
                 confirmLabel="Start device"
@@ -318,7 +358,13 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
   const submitText = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = text.trim();
-    if (value === "" || !canTouch || lastTap === null) return;
+    if (value === "" || !canTouch) return;
+    if (/^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(value)) {
+      setText("");
+      void send({ type: "navigate", url: value }, null);
+      return;
+    }
+    if (lastTap === null) return;
     setText("");
     void send({ type: "type", text: value, x: lastTap.x, y: lastTap.y }, null);
   };
@@ -338,8 +384,10 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
   const facts = [
     platformLabel(session.platform),
     session.buildVersion ? `build ${session.buildVersion}` : null,
-    session.branchName && session.branchName !== "base" ? session.branchName : null,
   ].filter((fact): fact is string => fact !== null);
+  // Worktree branch names run long; they sit with the details below, not in the header.
+  const branch = session.branchName && session.branchName !== "base" ? session.branchName : null;
+  const link = /^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(text.trim()) ? text.trim() : null;
   const idle =
     !ended && info?.idleTimeoutSeconds
       ? `Stops after ${formatMinutes(info.idleTimeoutSeconds * 1000)} without input${
@@ -461,18 +509,43 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
                 Back
               </Button>
             ) : null}
+            <Button size="sm" variant="ghost" disabled={!canTouch} onClick={() => void send({ type: "key", key: "ENTER" }, null)} aria-label="Press Enter">
+              <Icon name="CornerDownLeft" fallback="ArrowLeft" className="size-4" />
+              Enter
+            </Button>
+            <Button size="sm" variant="ghost" disabled={!canTouch} onClick={() => void send({ type: "key", key: "BACKSPACE" }, null)} aria-label="Press Delete">
+              <Icon name="Delete" fallback="X" className="size-4" />
+              Delete
+            </Button>
+            <Button size="sm" variant="ghost" disabled={!canTouch} onClick={() => void send({ type: "relaunch" }, null)} aria-label="Relaunch the app">
+              <Icon name="RotateCw" fallback="ArrowReloadHorizontal" className="size-4" />
+              Relaunch
+            </Button>
           </div>
-          <form onSubmit={submitText} className="mx-auto flex w-full max-w-xs items-center gap-2">
+          <form onSubmit={submitText} className="mx-auto flex w-full max-w-sm items-center gap-2">
             <Input
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={lastTap === null ? "Tap a field on the device first" : "Type into the field you tapped"}
-              aria-label="Text to type on the device"
-              disabled={!canTouch || lastTap === null}
-              maxLength={500}
+              placeholder={lastTap === null ? "Tap a field first, or paste a link" : "Type into the field you tapped"}
+              aria-label="Text to type on the device, or a link to open"
+              disabled={!canTouch}
+              maxLength={2000}
             />
-            <Button type="submit" size="sm" disabled={!canTouch || lastTap === null || text.trim() === ""}>
+            <Button type="submit" size="sm" disabled={!canTouch || lastTap === null || text.trim() === "" || link !== null}>
               Type
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!canTouch || link === null}
+              onClick={() => {
+                if (link === null) return;
+                setText("");
+                void send({ type: "navigate", url: link }, null);
+              }}
+            >
+              Open link
             </Button>
           </form>
         </>
@@ -484,6 +557,11 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
         <p>
           Started {formatAgo(session.startedAt, now)} {session.origin === "agent" ? "by the agent" : "from bb"}
         </p>
+        {branch !== null ? (
+          <p className="truncate" title={branch}>
+            Branch {branch}
+          </p>
+        ) : null}
         {idle !== null ? <p>{idle}</p> : null}
       </section>
 

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmSpend } from "./ConfirmSpend";
 import { SETTINGS_CARD, errorMessage } from "./format";
-import { useCliStatus, useRevylRpc } from "./hooks";
+import { UrlLink } from "@get-bb/plugin-sdk/app";
+
+import { minutesLeftLabel, useBilling, useCliStatus, useRevylRpc } from "./hooks";
 import { SetupNotice } from "./SetupNotice";
 
 /** One row of a bb settings card: a title and a line of detail, a control at the trailing edge. */
@@ -26,6 +28,7 @@ function SettingsRow({ title, detail, hint, control }: { title: string; detail: 
 export function SettingsSection() {
   const status = useCliStatus();
   const rpc = useRevylRpc();
+  const billing = useBilling(status.data?.state === "ready");
   if (status.data === null) return <Skeleton className="h-[7.5rem] w-full rounded-md" />;
   const notice = <SetupNotice status={status.data} onRecheck={() => void status.recheck()} rechecking={status.refreshing} />;
   if (status.data.state !== "ready") return notice;
@@ -58,6 +61,25 @@ export function SettingsSection() {
             </ConfirmSpend>
           }
         />
+        {billing ? (
+          <SettingsRow
+            title="Revyl plan"
+            detail={[
+              minutesLeftLabel(billing),
+              billing.periodEnd ? `resets ${new Date(billing.periodEnd).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            hint={billing.usdPerMinute ? `After that, $${billing.usdPerMinute} a minute. Up to ${billing.concurrentDevices ?? "?"} devices at once.` : undefined}
+            control={
+              billing.billingUrl ? (
+                <UrlLink href={billing.billingUrl} className="text-sm text-muted-foreground hover:text-foreground">
+                  Billing
+                </UrlLink>
+              ) : undefined
+            }
+          />
+        ) : null}
         <SettingsRow
           title="Revyl CLI"
           hint={[status.data.version, status.data.binary].filter(Boolean).join(" · ")}

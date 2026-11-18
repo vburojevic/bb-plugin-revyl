@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { isActive } from "../src/shared";
 import { formatDuration, runSummary } from "./format";
 import { useRun } from "./hooks";
-import { StatusGlyph, useOpenReport } from "./RunRow";
+import { FailureNote, StatusGlyph, useOpenReport } from "./RunRow";
 import { DeviceDirective } from "./DeviceDirective";
 
 const TASK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -51,7 +51,11 @@ function DirectiveCard({ taskId, kind, threadId }: { taskId: string; kind: "test
   const active = isActive(run.status);
   const facts = [
     run.kind === "workflow" ? "Workflow" : "Test",
-    run.done !== null && run.total !== null ? `${run.done}/${run.total} ${run.kind === "workflow" ? "tests" : "steps"}` : null,
+    run.kind === "test" && run.status === "failed" && run.failure && run.total !== null
+      ? `failed at step ${run.failure.step} of ${run.total}`
+      : run.done !== null && run.total !== null
+        ? `${run.done}/${run.total} ${run.kind === "workflow" ? "tests" : "steps"}`
+        : null,
     run.buildVersion === null ? null : `build ${run.buildVersion}`,
     active ? null : formatDuration(run.durationSeconds),
   ].filter((fact): fact is string => fact !== null);
@@ -76,6 +80,7 @@ function DirectiveCard({ taskId, kind, threadId }: { taskId: string; kind: "test
         </div>
       </div>
       {active && percent !== null ? <Progress value={percent} className="mt-2.5 h-1" aria-label="Run progress" /> : null}
+      {run.kind === "test" && run.status === "failed" && run.failure ? <FailureNote failure={run.failure} className="ml-[26px] mt-1.5" /> : null}
       {run.kind === "workflow" && run.children.length > 0 ? (
         <ul className="mt-2 space-y-1 border-t border-border pt-2">
           {run.children.map((child) => (

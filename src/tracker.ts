@@ -366,7 +366,10 @@ export class Tracker {
     const resolvedKind = kind ?? (await this.guessKind(taskId));
     if (resolvedKind === null) return null;
     const run = newRun({ kind: resolvedKind, taskId, threadId: null, startedAt: this.host.now(), origin: "agent" });
-    const polled = await this.poll(run);
+    let polled = await this.poll(run);
+    if (polled.kind === "test" && polled.status === "failed" && polled.taskId !== null) {
+      polled = { ...polled, failure: await this.failureOf(polled.taskId) };
+    }
     await this.store.updateRuns(PINNED_SCOPE, (runs) => [polled, ...runs.filter((other) => other.taskId !== taskId)]);
     return polled;
   }

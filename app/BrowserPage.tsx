@@ -14,7 +14,7 @@ import type { BrowserScope, Catalog, HistoryEntry, Run, RunKind, TestSummary } f
 type StartKind = Exclude<RunKind, "build">;
 import { ConfirmSpend, MINUTES_NOTE } from "./ConfirmSpend";
 import { STATUS_LABEL, errorMessage, formatWhen } from "./format";
-import { useCliStatus, usePageRuns, useRevylRpc } from "./hooks";
+import { minutesLeftLabel, useBilling, useCliStatus, usePageRuns, useRevylRpc } from "./hooks";
 import { TestReportView, WorkflowReportView } from "./ReportTab";
 import { RunRow, StatusGlyph } from "./RunRow";
 import { SetupNotice } from "./SetupNotice";
@@ -93,6 +93,7 @@ export function BrowserPage() {
   }, [catalog]);
 
   const ready = status.data?.state === "ready";
+  const billing = useBilling(ready);
   const recentRuns: Run[] = pageRuns.data?.runs ?? [];
 
   return (
@@ -120,6 +121,11 @@ export function BrowserPage() {
                   <Icon name="revyl/revyl" fallback="Building" className="size-3.5 shrink-0" />
                   <span className="sr-only">Revyl org: </span>
                   <span className="truncate">{status.data.orgName}</span>
+                  {billing?.iosMinutesLeft != null ? (
+                    <span className="shrink-0 tabular-nums" title={minutesLeftLabel(billing) ?? undefined}>
+                      · {Math.floor(billing.iosMinutesLeft).toLocaleString()} min left
+                    </span>
+                  ) : null}
                 </span>
               )}
               <Button variant="ghost" size="icon" className="size-7" aria-label="Refresh tests and workflows" disabled={refreshing} onClick={() => load(true)}>
@@ -299,7 +305,7 @@ function CatalogRow({
             <span className="block truncate text-xs text-muted-foreground">{detail}</span>
           </span>
         </button>
-        <ConfirmSpend title={`Run ${name}?`} description={MINUTES_NOTE} confirmLabel="Run" onConfirm={onStart}>
+        <ConfirmSpend title={`Run ${name}?`} description={MINUTES_NOTE} confirmLabel="Run" onConfirm={onStart} spends>
           {(confirm) => (
             <Button size="sm" variant="ghost" className="h-7 gap-1.5 px-2 text-muted-foreground hover:text-foreground" disabled={!canRun} onClick={confirm}>
               <Icon name="Play" fallback="ChevronRight" className="size-3.5" />

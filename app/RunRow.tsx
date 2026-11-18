@@ -68,6 +68,23 @@ export function useOpenReport() {
   };
 }
 
+/** Which step a failed test stopped at, and Revyl's reason, in two quiet lines. */
+export function FailureNote({ failure, className }: { failure: NonNullable<Run["failure"]>; className?: string }) {
+  return (
+    <div className={cn("mt-0.5 text-xs", className)}>
+      <p className="truncate text-foreground" title={failure.description ?? undefined}>
+        Failed at step {failure.step}
+        {failure.description ? `: ${failure.description}` : ""}
+      </p>
+      {failure.reason ? (
+        <p className="line-clamp-2 text-muted-foreground" title={failure.reason}>
+          {failure.reason}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** One run in the composer card or on the page. */
 export function RunRow({
   run,
@@ -131,6 +148,7 @@ export function RunRow({
             {run.error}
           </div>
         ) : null}
+        {run.kind === "test" && run.status === "failed" && run.failure ? <FailureNote failure={run.failure} /> : null}
         {run.kind === "workflow" && run.children.length > 0 ? (
           <ul className="mt-1 space-y-0.5">
             {run.children.map((child) => (
@@ -155,6 +173,7 @@ export function RunRow({
             <IconAction label="Cancel run" icon="Square" fallback="X" disabled={busy !== null || run.taskId === null} onClick={() => act("cancel")} />
           ) : run.kind !== "build" && (run.targetId !== null || run.name !== null) ? (
             <ConfirmSpend
+              spends
               title={`Run ${name} again?`}
               description={`${run.kind === "test" && run.buildVersion !== null ? `It reuses build ${run.buildVersion}. ` : ""}${MINUTES_NOTE}`}
               confirmLabel="Run again"

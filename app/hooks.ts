@@ -95,3 +95,42 @@ export function useRun(taskId: string, kind: Run["kind"] | null, threadId: strin
   }, [active, state]);
   return state;
 }
+
+export interface Billing {
+  planName: string | null;
+  iosMinutesLeft: number | null;
+  iosMinutesTotal: number | null;
+  androidMinutesLeft: number | null;
+  usdPerMinute: number | null;
+  minutesThisPeriod: number | null;
+  periodEnd: string | null;
+  concurrentDevices: number | null;
+  billingUrl: string | null;
+}
+
+/** The Revyl plan and minutes left; undefined while loading, null when Revyl did not say. */
+export function useBilling(enabled = true) {
+  const rpc = useRevylRpc();
+  const [billing, setBilling] = useState<Billing | null | undefined>(undefined);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    rpc.call("billing", {}).then(
+      (value) => !cancelled && setBilling(value),
+      () => !cancelled && setBilling(null),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [rpc, enabled]);
+  return billing;
+}
+
+/** "1,065 of 1,200 iOS minutes left on the Free plan", or null. */
+export function minutesLeftLabel(billing: Billing | null | undefined): string | null {
+  if (!billing || billing.iosMinutesLeft === null) return null;
+  const left = Math.max(0, Math.floor(billing.iosMinutesLeft)).toLocaleString();
+  const total = billing.iosMinutesTotal === null ? null : Math.floor(billing.iosMinutesTotal).toLocaleString();
+  return `${left}${total === null ? "" : ` of ${total}`} iOS minutes left${billing.planName ? ` on the ${billing.planName} plan` : ""}`;
+}
+

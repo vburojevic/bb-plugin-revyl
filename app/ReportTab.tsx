@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ExperimentalThreadActionTabProps } from "@get-bb/plugin-sdk/app";
-import { UrlLink } from "@get-bb/plugin-sdk/app";
+import { UrlLink, experimental_copyToClipboard as copyToClipboard } from "@get-bb/plugin-sdk/app";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -169,9 +170,26 @@ export function TestReportView({ taskId }: { taskId: string }) {
           <StatusGlyph status={report.status} />
           <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">{report.testName ?? "Test run"}</h2>
           {report.reportUrl === null ? null : (
-            <UrlLink href={report.reportUrl} className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
-              Open in Revyl
-            </UrlLink>
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Copy the report link"
+                aria-description="People in your Revyl org can open it"
+                onClick={() => {
+                  void copyToClipboard({ text: report.reportUrl! }).then(
+                    () => toast.success("Report link copied"),
+                    () => toast.error("Could not copy the link"),
+                  );
+                }}
+              >
+                <Icon name="Link" fallback="Copy" className="size-4" />
+              </Button>
+              <UrlLink href={report.reportUrl} className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
+                Open in Revyl
+              </UrlLink>
+            </>
           )}
         </div>
         <p className="text-xs text-muted-foreground">
@@ -225,6 +243,8 @@ export function TestReportView({ taskId }: { taskId: string }) {
           ))}
         </ol>
       </section>
+
+      <Diagnostics taskId={report.taskId} />
     </ReportFrame>
   );
 }
@@ -355,3 +375,144 @@ export function WorkflowReportView({
     </ReportFrame>
   );
 }
+
+function Stat({ label, value, detail }: { label: string; value: string; detail: string | null }) {
+  return (
+    <div className="rounded-md border border-border bg-surface-recessed/70 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm tabular-nums text-foreground">{value}</p>
+      {detail === null ? null : <p className="text-xs tabular-nums text-muted-foreground">{detail}</p>}
+    </div>
+  );
+}
+
+const round = (value: number | null, digits = 0) => (value === null ? null : value.toFixed(digits));
+
+/**
+ * The run's performance, warning and error logs, and failed requests, read
+ * from Revyl when opened. Log lines can carry tokens, so they are shown and
+ * never stored.
+ */
+function Diagnostics({ taskId }: { taskId: string }) {
+  const rpc = useRevylRpc();
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<{
+    perf: { avgCpu: number | null; peakCpu: number | null; avgMemoryMb: number | null; peakMemoryMb: number | null; avgFps: number | null; minFps: number | null } | null;
+    logs: { lines: Array<{ level: string; text: string }>; matched: number; total: number | null } | null;
+    network: {
+      total: number | null;
+      failed: number | null;
+      requests: Array<{ method: string | null; host: string | null; path: string | null; status: number | null; durationMs: number | null }>;
+    } | null;
+    notes: { perf: string | null; logs: string | null; network: string | null };
+    partial: boolean;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || data !== null) return;
+    let cancelled = false;
+    setError(null);
+    rpc.call("run_diagnostics", { taskId }).then(
+      (value) => !cancelled && setData(value),
+      (cause: unknown) => !cancelled && setError(errorMessage(cause)),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [open, data, rpc, taskId]);
+
+  const perf = data?.perf ?? null;
+  return (
+    <section className="space-y-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-2 rounded-md text-left text-sm font-medium text-foreground hover:text-foreground/80"
+      >
+        <Icon name="ChevronRight" className={cn("size-3.5 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none", open && "rotate-90")} />
+        Performance, logs and network
+      </button>
+      {!open ? null : data === null ? (
+        error === null ? (
+          <div className="space-y-2">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          <p role="alert" className="text-sm text-destructive-text">
+            {error}
+          </p>
+        )
+      ) : (
+        <div className="space-y-4">
+          {data.partial ? <p className="text-xs text-muted-foreground">The run is still going: this is what Revyl has so far.</p> : null}
+
+          <div className="space-y-1.5">
+            <h4 className="text-xs font-medium text-muted-foreground">Performance</h4>
+            {perf === null ? (
+              <p className="text-xs text-muted-foreground">{data.notes.perf ?? "No performance data for this run."}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                <Stat label="CPU" value={perf.avgCpu === null ? "–" : `${round(perf.avgCpu, 1)}% avg`} detail={perf.peakCpu === null ? null : `${round(perf.peakCpu)}% peak`} />
+                <Stat label="Memory" value={perf.avgMemoryMb === null ? "–" : `${perf.avgMemoryMb} MB avg`} detail={perf.peakMemoryMb === null ? null : `${perf.peakMemoryMb} MB peak`} />
+                <Stat label="Frame rate" value={perf.avgFps === null ? "–" : `${round(perf.avgFps)} fps avg`} detail={perf.minFps === null ? null : `${round(perf.minFps)} fps low`} />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <h4 className="text-xs font-medium text-muted-foreground">
+              Warnings and errors{data.logs ? ` · ${data.logs.matched}` : ""}
+            </h4>
+            {data.logs === null || data.logs.lines.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{data.logs === null ? (data.notes.logs ?? "No device logs for this run.") : "None logged."}</p>
+            ) : (
+              <ol className="max-h-64 overflow-y-auto rounded-md border border-border bg-surface-recessed/70 px-3 py-2 font-mono text-[11px] leading-relaxed">
+                {data.logs.lines.map((line, index) => (
+                  <li key={index} className="flex gap-2">
+                    <span className={cn("w-3 shrink-0", line.level.startsWith("E") || line.level.startsWith("F") ? "text-destructive-text" : "text-muted-foreground")}>{line.level.slice(0, 1)}</span>
+                    <span className="min-w-0 break-all text-foreground">{line.text}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <h4 className="text-xs font-medium text-muted-foreground">Network</h4>
+            {data.network === null ? (
+              <p className="text-xs text-muted-foreground">
+                {data.notes.network && /no network capture/i.test(data.notes.network)
+                  ? "Revyl captured no network traffic for this run (iOS only, when the app allows it)."
+                  : (data.notes.network ?? "No network data for this run.")}
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {data.network.total ?? "?"} requests, {data.network.failed ?? 0} failed
+                </p>
+                {data.network.requests.length === 0 ? null : (
+                  <ul className="divide-y divide-border rounded-md border border-border text-xs">
+                    {data.network.requests.map((request, index) => (
+                      <li key={index} className="flex items-baseline gap-2 px-3 py-1.5">
+                        <span className="w-10 shrink-0 tabular-nums text-destructive-text">{request.status ?? "–"}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-foreground" title={`${request.method ?? ""} ${request.host ?? ""}${request.path ?? ""}`}>
+                          {request.method ?? ""} {request.host ?? ""}
+                          {request.path ?? ""}
+                        </span>
+                        {request.durationMs === null ? null : <span className="shrink-0 tabular-nums text-muted-foreground">{Math.round(request.durationMs)} ms</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+

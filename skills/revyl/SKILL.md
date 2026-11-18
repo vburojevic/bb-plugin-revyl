@@ -15,7 +15,8 @@ The person turns it on with the Test on Revyl button in the thread's composer (o
 - Look around: `revyl device start --platform ios --build-version-id <id> --open=false --json`, then `revyl device screenshot|tap|swipe|type --session-id <id>`; stop it with `revyl device stop --session-id <id>`. The person watches it live in bb's Revyl device pane, which opens by itself and lists what you do (never the text you type).
 - No `.revyl/config.yaml` yet: `revyl init --detect --xcode-scheme ios=<Scheme> -y`, create the app with `revyl app create` if needed, set `app_id` under `build.profiles.<profile>.ios`, generate the project in `build_commands` when it is generated (`xcodegen generate`, `tuist generate`), and commit `.revyl/`.
 - Build secrets: ask the person first, then take the value only through bb's secure input (`bb secret request`) and pipe it to `revyl build secret set <NAME> --stdin`; never print it.
-- Limits: 1 cloud device and 1 cloud build at a time; a thread acts only on devices, runs and builds it started.
+- Limits: 1 cloud device and 1 cloud build at a time; a thread acts only on devices, runs and builds it started. Share links, `revyl explore` and cloud Macs (`revyl computer`) are refused; the person shares reports from bb.
+- Why a test failed: `bb revyl runs` prints the failing step and Revyl's reason for each failed test; `revyl run logs|perf|network <task_id> --json` read the run's device logs, performance and failed requests.
 - Never run `revyl auth login`, change the REVYL_* variables, or print REVYL_API_KEY.
 
 ## When the switch is off

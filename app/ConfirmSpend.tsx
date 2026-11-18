@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 
+import { minutesLeftLabel, useBilling } from "./hooks";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,14 +23,19 @@ export function ConfirmSpend({
   confirmLabel,
   onConfirm,
   children,
+  spends = false,
 }: {
   title: string;
   description: string;
   confirmLabel: string;
   onConfirm: () => void;
   children: (open: () => void) => ReactNode;
+  /** It uses device minutes: say how many are left. */
+  spends?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const billing = useBilling(open && spends);
+  const left = spends ? minutesLeftLabel(billing) : null;
   return (
     <>
       {children(() => setOpen(true))}
@@ -36,7 +43,18 @@ export function ConfirmSpend({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {description}
+              {left === null ? null : (
+                <>
+                  <br />
+                  <span className="mt-1.5 inline-block">
+                    {left}
+                    {billing?.usdPerMinute ? `, then $${billing.usdPerMinute} a minute` : ""}.
+                  </span>
+                </>
+              )}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
