@@ -69,13 +69,15 @@ export function useOpenReport() {
 }
 
 /** Which step a failed test stopped at, and Revyl's reason, in two quiet lines. */
-export function FailureNote({ failure, className }: { failure: NonNullable<Run["failure"]>; className?: string }) {
+export function FailureNote({ failure, className, step = true }: { failure: NonNullable<Run["failure"]>; className?: string; step?: boolean }) {
+  const description = failure.description ?? "";
   return (
     <div className={cn("mt-0.5 text-xs", className)}>
-      <p className="truncate text-foreground" title={failure.description ?? undefined}>
-        Failed at step {failure.step}
-        {failure.description ? `: ${failure.description}` : ""}
-      </p>
+      {step || description ? (
+        <p className="truncate text-foreground" title={description || undefined}>
+          {step ? `Failed at step ${failure.step}${description ? `: ${description}` : ""}` : description}
+        </p>
+      ) : null}
       {failure.reason ? (
         <p className="line-clamp-2 text-muted-foreground" title={failure.reason}>
           {failure.reason}

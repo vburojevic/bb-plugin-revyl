@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ReportStep, TestReport, WorkflowReport } from "../src/model";
 import { isActive } from "../src/shared";
@@ -171,21 +171,26 @@ export function TestReportView({ taskId }: { taskId: string }) {
           <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">{report.testName ?? "Test run"}</h2>
           {report.reportUrl === null ? null : (
             <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                aria-label="Copy the report link"
-                aria-description="People in your Revyl org can open it"
-                onClick={() => {
-                  void copyToClipboard({ text: report.reportUrl! }).then(
-                    () => toast.success("Report link copied"),
-                    () => toast.error("Could not copy the link"),
-                  );
-                }}
-              >
-                <Icon name="Link" fallback="Copy" className="size-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label="Copy the report link"
+                    aria-description="People in your Revyl org can open it"
+                    onClick={() => {
+                      void copyToClipboard({ text: report.reportUrl! }).then(
+                        () => toast.success("Report link copied"),
+                        () => toast.error("Could not copy the link"),
+                      );
+                    }}
+                  >
+                    <Icon name="Link" fallback="Copy" className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Copy report link</TooltipContent>
+              </Tooltip>
               <UrlLink href={report.reportUrl} className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
                 Open in Revyl
               </UrlLink>
@@ -454,7 +459,7 @@ function Diagnostics({ taskId }: { taskId: string }) {
             {perf === null ? (
               <p className="text-xs text-muted-foreground">{data.notes.perf ?? "No performance data for this run."}</p>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-2">
                 <Stat label="CPU" value={perf.avgCpu === null ? "–" : `${round(perf.avgCpu, 1)}% avg`} detail={perf.peakCpu === null ? null : `${round(perf.peakCpu)}% peak`} />
                 <Stat label="Memory" value={perf.avgMemoryMb === null ? "–" : `${perf.avgMemoryMb} MB avg`} detail={perf.peakMemoryMb === null ? null : `${perf.peakMemoryMb} MB peak`} />
                 <Stat label="Frame rate" value={perf.avgFps === null ? "–" : `${round(perf.avgFps)} fps avg`} detail={perf.minFps === null ? null : `${round(perf.minFps)} fps low`} />
@@ -474,11 +479,11 @@ function Diagnostics({ taskId }: { taskId: string }) {
             {data.logs === null || data.logs.lines.length === 0 ? (
               <p className="text-xs text-muted-foreground">{data.logs === null ? (data.notes.logs ?? "No device logs for this run.") : "None logged."}</p>
             ) : (
-              <ol className="max-h-64 overflow-y-auto rounded-md border border-border bg-surface-recessed/70 px-3 py-2 font-mono text-[11px] leading-relaxed">
+              <ol className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-border bg-surface-recessed/70 px-3 py-2 font-mono text-[11px] leading-relaxed">
                 {data.logs.lines.map((line, index) => (
                   <li key={index} className="flex gap-2">
                     <span className={cn("w-3 shrink-0", line.level.startsWith("E") || line.level.startsWith("F") ? "text-destructive-text" : "text-muted-foreground")}>{line.level.slice(0, 1)}</span>
-                    <span className="min-w-0 break-all text-foreground">{line.text}</span>
+                    <span className="min-w-0 text-foreground [overflow-wrap:anywhere]">{line.text}</span>
                   </li>
                 ))}
               </ol>

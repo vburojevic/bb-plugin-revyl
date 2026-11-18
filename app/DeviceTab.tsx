@@ -74,6 +74,8 @@ function FollowThread({ threadId, pinned }: { threadId: string; pinned: string |
   return <DeviceView key={current.sessionId} threadId={threadId} session={current} agentBusy={data.agentBusy} />;
 }
 
+const platformOf = (app: RevylApp) => (app.platform ?? "ios").toLowerCase();
+
 /** The apps a person can start a device for, each start confirmed (device minutes cost money). */
 function StartDevice({ threadId, title = "Start a device" }: { threadId: string; title?: string }) {
   const { projectId } = useBbContext();
@@ -100,7 +102,11 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
     if (choice === "default") return {};
     const [platform, model, os] = choice.split("|");
     // A model of the other platform does not apply to this app: start Revyl's default.
-    return platform === (app.platform ?? "ios").toLowerCase() ? { deviceModel: model, osVersion: os } : {};
+    return platform === platformOf(app) ? { deviceModel: model, osVersion: os } : {};
+  };
+  const deviceName = (app: RevylApp) => {
+    const target = targetFor(app);
+    return target.deviceModel === undefined ? "Revyl's default device" : `${target.deviceModel} (${target.osVersion})`;
   };
 
   useEffect(() => {
@@ -126,18 +132,28 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
     }
   };
 
+  // Only the devices that can run an app here.
+  const platforms = new Set((apps ?? []).map(platformOf));
+  const choices =
+    targets === null
+      ? []
+      : [
+          ...(platforms.has("ios") ? targets.ios.map((target) => ({ ...target, platform: "ios" })) : []),
+          ...(platforms.has("android") ? targets.android.map((target) => ({ ...target, platform: "android" })) : []),
+        ];
+
   return (
     <section className="space-y-2">
-      <div className="flex items-center gap-2">
-        <h3 className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</h3>
-        {targets !== null && targets.ios.length + targets.android.length > 0 ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="flex-1 whitespace-nowrap text-sm font-medium text-foreground">{title}</h3>
+        {choices.length > 0 ? (
           <Select value={choice} onValueChange={setChoice}>
-            <SelectTrigger className="h-8 w-56" aria-label="Device to start">
+            <SelectTrigger className="h-8 w-56 max-w-full" aria-label="Device to start">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="default">Revyl's default device</SelectItem>
-              {[...targets.ios.map((target) => ({ ...target, platform: "ios" })), ...targets.android.map((target) => ({ ...target, platform: "android" }))].map((target) => (
+              {choices.map((target) => (
                 <SelectItem key={`${target.platform}|${target.model}|${target.os}`} value={`${target.platform}|${target.model}|${target.os}`}>
                   {target.model} · {target.os}
                 </SelectItem>
@@ -167,7 +183,7 @@ function StartDevice({ threadId, title = "Start a device" }: { threadId: string;
               </div>
               <ConfirmSpend
                 spends
-                title={`Start a device for ${app.name}?`}
+                title={`Start ${deviceName(app)} for ${app.name}?`}
                 description={`${MINUTES_NOTE} It stops when you press Stop or after it sits idle.`}
                 confirmLabel="Start device"
                 onConfirm={() => void start(app)}
@@ -355,15 +371,17 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
     void send({ type: "swipe", x: from.x, y: from.y, direction }, from);
   };
 
+  const link = /^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(text.trim()) ? text.trim() : null;
+  const openLink = () => {
+    if (link === null || !canTouch) return;
+    setText("");
+    void send({ type: "navigate", url: link }, null);
+  };
   const submitText = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = text.trim();
     if (value === "" || !canTouch) return;
-    if (/^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(value)) {
-      setText("");
-      void send({ type: "navigate", url: value }, null);
-      return;
-    }
+    if (link !== null) return openLink();
     if (lastTap === null) return;
     setText("");
     void send({ type: "type", text: value, x: lastTap.x, y: lastTap.y }, null);
@@ -387,7 +405,6 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
   ].filter((fact): fact is string => fact !== null);
   // Worktree branch names run long; they sit with the details below, not in the header.
   const branch = session.branchName && session.branchName !== "base" ? session.branchName : null;
-  const link = /^[a-z][a-z0-9+.-]*:\/\/\S+$/i.test(text.trim()) ? text.trim() : null;
   const idle =
     !ended && info?.idleTimeoutSeconds
       ? `Stops after ${formatMinutes(info.idleTimeoutSeconds * 1000)} without input${
@@ -498,7 +515,7 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
 
       {ended ? null : (
         <>
-          <div className="mx-auto flex w-full max-w-xs items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
             <Button size="sm" variant="ghost" disabled={!canTouch} onClick={() => void send({ type: "home" }, null)}>
               <Icon name="Home" className="size-4" />
               Home
@@ -522,8 +539,9 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
               Relaunch
             </Button>
           </div>
-          <form onSubmit={submitText} className="mx-auto flex w-full max-w-sm items-center gap-2">
+          <form onSubmit={submitText} className="mx-auto flex w-full max-w-sm flex-wrap items-center justify-center gap-2">
             <Input
+              className="min-w-48 flex-1"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder={lastTap === null ? "Tap a field first, or paste a link" : "Type into the field you tapped"}
@@ -531,22 +549,20 @@ function DeviceView({ threadId, session, agentBusy }: { threadId: string; sessio
               disabled={!canTouch}
               maxLength={2000}
             />
-            <Button type="submit" size="sm" disabled={!canTouch || lastTap === null || text.trim() === "" || link !== null}>
-              Type
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!canTouch || link === null}
-              onClick={() => {
-                if (link === null) return;
-                setText("");
-                void send({ type: "navigate", url: link }, null);
-              }}
-            >
-              Open link
-            </Button>
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={!canTouch || lastTap === null || text.trim() === "" || link !== null}>
+                Type
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canTouch || link === null}
+                onClick={openLink}
+              >
+                Open link
+              </Button>
+            </div>
           </form>
         </>
       )}

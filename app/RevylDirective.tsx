@@ -80,7 +80,7 @@ function DirectiveCard({ taskId, kind, threadId }: { taskId: string; kind: "test
         </div>
       </div>
       {active && percent !== null ? <Progress value={percent} className="mt-2.5 h-1" aria-label="Run progress" /> : null}
-      {run.kind === "test" && run.status === "failed" && run.failure ? <FailureNote failure={run.failure} className="ml-[26px] mt-1.5" /> : null}
+      {run.kind === "test" && run.status === "failed" && run.failure ? <FailureNote failure={run.failure} step={run.total === null} className="ml-[26px] mt-1.5" /> : null}
       {run.kind === "workflow" && run.children.length > 0 ? (
         <ul className="mt-2 space-y-1 border-t border-border pt-2">
           {run.children.map((child) => (
