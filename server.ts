@@ -24,7 +24,7 @@ import { REALTIME_RUNS, REALTIME_THREAD_STATE, rpcContract } from "./src/contrac
 import { endedLabel } from "./src/shared";
 import { isActive, type CliStatus, type Run, type RunKind, type Session, type SessionEnd } from "./src/model";
 import { RevylCli, RevylCliError, firstLine, locateRevyl } from "./src/revyl-cli";
-import { arr, mapHistory, mapTestReport, mapWorkflowStatus, num, obj, str } from "./src/revyl-json";
+import { arr, mapHistory, mapTestReport, mapWorkflowStatus, num, obj, str, tidyLogLine } from "./src/revyl-json";
 import { PAGE_SCOPE, PINNED_SCOPE, Store, scopeOf } from "./src/store";
 import { EVENT_PAGE, TICK_MS, Tracker, newRun, type ThreadEventRow } from "./src/tracker";
 import { BASE_INSTRUCTIONS, CAPS, deviceDirective, formatRunsForCli, testOnRevylInstructions } from "./src/agent-text";
@@ -686,8 +686,8 @@ export default async function plugin(bb: BbPluginApi) {
               lines: arr(logsRaw.lines)
                 .map(obj)
                 .slice(-60)
-                .map((line) => ({ level: str(line.Level) ?? str(line.level) ?? "", text: (str(line.Raw) ?? str(line.raw) ?? "").slice(0, 400) })),
-              matched: num(logsRaw.matched) ?? 0,
+                .map((line) => ({ level: str(line.Level) ?? str(line.level) ?? "", text: tidyLogLine(str(line.Raw) ?? str(line.raw) ?? "").slice(0, 400) })),
+              matched: num(logsRaw.matched_before_limit) ?? num(logsRaw.matched) ?? 0,
               total: num(logsRaw.total),
             };
       const requestList = networkRaw === null ? [] : arr(networkRaw.requests ?? networkRaw.items ?? networkRaw.entries).map(obj);

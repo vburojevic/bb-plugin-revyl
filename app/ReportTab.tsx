@@ -464,7 +464,12 @@ function Diagnostics({ taskId }: { taskId: string }) {
 
           <div className="space-y-1.5">
             <h4 className="text-xs font-medium text-muted-foreground">
-              Warnings and errors{data.logs ? ` · ${data.logs.matched}` : ""}
+              Warnings and errors
+              {data.logs && data.logs.matched > 0
+                ? data.logs.lines.length < data.logs.matched
+                  ? ` · last ${data.logs.lines.length} of ${data.logs.matched}`
+                  : ` · ${data.logs.matched}`
+                : ""}
             </h4>
             {data.logs === null || data.logs.lines.length === 0 ? (
               <p className="text-xs text-muted-foreground">{data.logs === null ? (data.notes.logs ?? "No device logs for this run.") : "None logged."}</p>

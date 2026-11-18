@@ -127,3 +127,13 @@ describe("parseDurationLabel", () => {
     expect(parseDurationLabel(null)).toBeNull();
   });
 });
+
+describe("tidyLogLine", () => {
+  it("keeps the time and the message of an iOS log line", async () => {
+    const { tidyLogLine } = await import("../src/revyl-json");
+    expect(
+      tidyLogLine("2026-11-17 22:23:41.961699-0800 0x6e0a Error 0x40503 2242 0 Tasklet: (UIKitCore) [com.apple.UIKit:UIFocus] caching"),
+    ).toBe("22:23:41 Tasklet: (UIKitCore) [com.apple.UIKit:UIFocus] caching");
+    expect(tidyLogLine("plain line")).toBe("plain line");
+  });
+});

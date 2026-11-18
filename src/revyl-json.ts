@@ -288,3 +288,12 @@ export function mapWorkflows(raw: unknown): WorkflowSummary[] {
     return { id: str(workflow.id) ?? "", name: str(workflow.name) ?? "Untitled workflow", testIds };
   }).filter((workflow) => workflow.id !== "");
 }
+
+/**
+ * An iOS unified-log line without its date, thread, activity and process
+ * columns: "22:23:41 Tasklet: (UIKitCore) …". Other lines pass through.
+ */
+export function tidyLogLine(raw: string): string {
+  const match = /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\.\d+[-+]\d{4}\s+\S+\s+\S+\s+\S+\s+\d+\s+\d+\s+([\s\S]*)$/.exec(raw);
+  return match === null ? raw : `${match[1]} ${match[2]}`;
+}
