@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.7
+
+- A failed test says which step it stopped at and Revyl's reason: on the run card, on its reply card ("failed at step 4 of 4") and in `bb revyl runs`.
+- The report pane has a Performance, logs and network section (CPU, memory and frame rate, the run's warnings and errors, failed requests), read from Revyl when opened and never stored, and a Copy link button.
+- Minutes: your plan and iOS minutes left show in Settings, on the Revyl page, and in every confirmation that spends minutes.
+- Device pane: pick the model and OS when starting a device (only devices for the project's platforms, named in the confirmation); press Enter or Delete, paste a link or deep link to open it, or relaunch the app; the controls wrap in a narrow side panel; the long worktree branch moved from the header to the details.
+- Fix: Stop now waits until Revyl confirms the device is off (`revyl device stop` can answer `stopped: false`), in the pane and when a thread is archived. A device Revyl already ended counts as stopped, and any other stop error shows Revyl's message.
+- Fix: text typed from the pane went to the CLI as an argument, visible in the server's process list, and replaced the field's contents. It now goes through the environment and adds to the field.
+- Fix: a current `.revyl/config.yaml` (`build.profiles`) now links a project to its app, and Revyl MCP runs through `manage_tests` and `manage_workflows` get cards.
+- The proxy refuses public links (report and workflow share links, `revyl session publish`, Atlas share links), Revyl explorations and cloud Macs in Test on Revyl threads.
+- Fix: the proxy passed percent-escaped paths such as `/api/v1/%65xecution/...` or a trailing `%0A`, which Revyl routes like the plain path, so an agent could get past its rules and reach another thread's device. It now refuses escaped letters, digits, `-._~` and control characters, and `//`.
+- Fix: the device pane's input and Stop act only on a device the thread started.
+
 ## 0.2.6
 
 - Revyl's app icon is the plugin's logo where bb has room for one, beside the theme-colored mark on small surfaces.
