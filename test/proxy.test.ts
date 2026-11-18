@@ -87,6 +87,16 @@ describe("tokens and paths", () => {
     expect(isPlainPath("/health_check")).toBe(true);
     expect(isPlainPath("/admin")).toBe(false);
   });
+
+  it("refuses escaped letters that Revyl would decode into a route", () => {
+    expect(isPlainPath(`/api/v1/%65xecution/device-proxy/${THEIRS}/tap`)).toBe(false);
+    expect(isPlainPath("/api/v1/computer-run%73")).toBe(false);
+    expect(isPlainPath("/api/v1/%2E%2E/admin")).toBe(false);
+    expect(isPlainPath("/api/v1//explorations")).toBe(false);
+    for (const control of ["%0A", "%0d", "%09", "%00", "%7F"]) expect(isPlainPath(`/api/v1/execution/start_device${control}`), control).toBe(false);
+    // What the CLI does escape (a space in a name) still goes through.
+    expect(isPlainPath("/api/v1/tests/name/smoke%20test")).toBe(true);
+  });
 });
 
 describe("handleProxy", () => {
@@ -180,6 +190,8 @@ describe("refused outright", () => {
       ["POST", "/api/v1/explorations"],
       ["POST", "/api/v1/computer-runs"],
       ["DELETE", `/api/v1/computer-runs/${THEIRS}`],
+      ["POST", `/api/v1/reports-v3/sessions/${THEIRS}/proof-media`],
+      ["POST", `/api/v1/atlas/v2/apps/${MINE}/share`],
     ];
     for (const [method, path] of refused) expect((await handleProxy(request(path!, method, method === "GET" ? undefined : {}), deps)).status, path).toBe(403);
     expect(calls).toHaveLength(0);

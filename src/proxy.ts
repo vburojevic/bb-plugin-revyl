@@ -91,13 +91,18 @@ export function upstreamTarget(requestUrl: string): { path: string; query: strin
 
 /**
  * A Revyl path the proxy will look at: `/api/…` or `/health_check`, no `.`
- * or `..` segment, no encoded dot, slash or backslash, and unchanged by URL
+ * or `..` segment, no `//`, no encoded slash or backslash, and unchanged by URL
  * normalization. Without this, `/device-proxy/<mine>/../<theirs>/tap` would
  * pass the ownership check on `<mine>` and reach someone else's device.
+ * Revyl decodes escapes before routing, so `/api/v1/%65xecution/…` is
+ * `/execution/…` there and would slip past every rule here, and Revyl
+ * routes `computer-runs%0A` as `computer-runs`. So an escaped letter, digit,
+ * `-._~` or control character is refused. The CLI never sends those.
  */
 export function isPlainPath(path: string): boolean {
   if (path !== "/health_check" && !path.startsWith("/api/")) return false;
-  if (/%2e|%2f|%5c|\\/i.test(path)) return false;
+  if (/%2f|%5c|\\|\/\//i.test(path)) return false;
+  if (/%([01][\da-f]|7f|2[de]|3\d|4[1-9a-f]|5[\da]|5f|6[1-9a-f]|7[\da]|7e)/i.test(path)) return false;
   if (path.split("/").some((segment) => segment === "." || segment === "..")) return false;
   try {
     return new URL(path, "https://revyl.invalid").pathname === path;
@@ -148,6 +153,12 @@ const REFUSED: Array<{ pattern: RegExp; methods: ReadonlySet<string> | null; mes
     pattern: /^\/api\/v1\/(report\/async-run\/generate_shareable_report_link_by_(task|session)|workflows\/share\/generate_shareable_link)(\/|$)/,
     methods: null,
     message: "Share links are made by the person in bb, not by an agent: a public link works for anyone and never expires.",
+  },
+  {
+    // `revyl session publish` (a public image URL) and `revyl atlas share create`.
+    pattern: /^\/api\/v1\/(reports-v3\/sessions\/[^/]+\/proof-media|atlas\/v2\/apps\/[^/]+\/share)(\/|$)/,
+    methods: new Set(["POST", "PUT", "PATCH", "DELETE"]),
+    message: "Public links are made by the person in bb, not by an agent: anyone with the link can open it. Pin results in your reply with a ::revyl directive instead.",
   },
   {
     pattern: /^\/api\/v1\/explorations(\/|$)/,

@@ -177,16 +177,23 @@ export default async function plugin(bb: BbPluginApi) {
    * device marked ended too early would keep using minutes unseen.
    */
   const stopDevice = async (sessionId: string): Promise<boolean> => {
+    let failure: RevylCliError | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 4_000));
       try {
+        // A failed stop still prints JSON, `stopped: false` with Revyl's error.
         const root = obj(await cli.json(["device", "stop", "--session-id", sessionId], { cwd: deviceCwd, timeoutMs: 60_000 }));
         if (root.stopped !== false) return true;
+        const error = str(root.error);
+        failure = error === null ? null : new RevylCliError("failed", firstLine(error), 1);
       } catch (error) {
-        if (error instanceof RevylCliError && /terminal state|not found|no session/i.test(error.message)) return true;
-        if (attempt === 2) throw error;
+        if (!(error instanceof RevylCliError)) throw error;
+        failure = error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 4_000));
+      // A device Revyl already ended needs no stop.
+      if (failure !== null && /terminal state|not found|no session/i.test(failure.message)) return true;
     }
+    if (failure !== null) throw failure;
     return false;
   };
 
@@ -369,6 +376,8 @@ export default async function plugin(bb: BbPluginApi) {
   settings.onChange((next, prev) => {
     if (next.apiKey !== prev.apiKey) {
       status = null;
+      billingCache = null;
+      targetsCache = null;
       catalog.reset();
     }
   });
@@ -377,6 +386,13 @@ export default async function plugin(bb: BbPluginApi) {
 
   const refuse = (code: "conflict" | "forbidden" | "invalid" | "not_found", message: string) =>
     new PluginRpcRefusal({ code, message });
+
+  /** The person drives and stops only devices that thread started. */
+  const ownSession = async (threadId: string, sessionId: string) => {
+    if (!(await store.sessions(threadId)).some((session) => session.sessionId === sessionId)) {
+      throw refuse("not_found", "This device is not one this bb thread started.");
+    }
+  };
 
   const cliError = (error: unknown): never => {
     if (error instanceof RevylCliError) {
@@ -774,6 +790,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
 
     session_stop: async ({ threadId, sessionId }) => {
+      await ownSession(threadId, sessionId);
       let stopped: boolean;
       try {
         stopped = await stopDevice(sessionId);
@@ -786,6 +803,7 @@ export default async function plugin(bb: BbPluginApi) {
     },
 
     session_input: async ({ threadId, sessionId, action }) => {
+      await ownSession(threadId, sessionId);
       if (await agentBusy(threadId)) {
         throw refuse("conflict", "The agent is working in this thread. Touch input unlocks when it goes idle.");
       }
