@@ -4,8 +4,9 @@
  *
  * A project is linked through its repo's Revyl files, the ones `revyl init`
  * and `revyl test create` write:
- *   - `.revyl/config.yaml`: `build.platforms.*.app_id` and the `tests:` map of
- *     alias to test id;
+ *   - `.revyl/config.yaml`: `build.profiles.<name>.<platform>.app_id` (the
+ *     current format), or `build.platforms.<platform>.app_id` and the `tests:`
+ *     map of alias to test id (the format before `revyl config migrate`);
  *   - `.revyl/tests/*.yaml`: `_meta.remote_id` (the test id) and
  *     `test.build.name` (the app name).
  * Workflows have no app of their own, so a workflow belongs to the project
@@ -36,9 +37,16 @@ export async function readProjectLink(root: string): Promise<ProjectLink | null>
   try {
     const config = obj(parseYaml(await readFile(join(root, ".revyl", "config.yaml"), "utf8")));
     found = true;
-    for (const platform of Object.values(obj(obj(config.build).platforms))) {
+    const build = obj(config.build);
+    for (const platform of Object.values(obj(build.platforms))) {
       const appId = str(obj(platform).app_id);
       if (appId !== null) link.appIds.add(appId);
+    }
+    for (const profile of Object.values(obj(build.profiles))) {
+      for (const platform of Object.values(obj(profile))) {
+        const appId = str(obj(platform).app_id);
+        if (appId !== null) link.appIds.add(appId);
+      }
     }
     for (const [alias, id] of Object.entries(obj(config.tests))) {
       link.testNames.add(alias);

@@ -3,8 +3,8 @@
  *
  * The CLI is the plugin's whole engine: the docs publish no REST reference for
  * tests, runs or reports, while `revyl ... --json` is documented and stable
- * enough to parse. The plugin reuses the CLI's own sign-in and never reads,
- * stores or passes an API key itself.
+ * enough to parse. It runs with the key from the plugin's secret settings in
+ * its environment and a private auth folder, never the machine's own sign-in.
  *
  * Every call has a timeout and a concurrency cap so a slow Revyl backend can
  * never pile up processes on the bb server.
@@ -42,6 +42,8 @@ export interface RunOptions {
   cwd?: string | null;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** Extra environment for this call, such as text passed with `--text-env` so it never shows in `ps`. */
+  env?: Record<string, string>;
 }
 
 const DEFAULT_TIMEOUT_MS = 45_000;
@@ -153,6 +155,7 @@ export class RevylCli {
               // Tells Revyl's analytics which agent surface ran the command.
               REVYL_AGENT: "bb-plugin-revyl",
               ...extra,
+              ...options.env,
             },
           },
           (error, stdout, stderr) => {

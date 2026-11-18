@@ -9,6 +9,26 @@ const build = (overrides: Record<string, unknown>) => ({
   ...overrides,
 });
 
+describe("formatRunsForCli for tests", () => {
+  it("says which step a failed test stopped at, and why", () => {
+    const run = {
+      ...newRun({ kind: "test", taskId: "3c5cfe81-dd1e-4fab-a209-5b34f4061939", targetId: "t", name: "complete-task", threadId: "thr", startedAt: 0, origin: "agent" }),
+      status: "failed" as const,
+      done: 4,
+      total: 4,
+      failure: { step: 4, description: "Verify Buy milk shows as done", reason: "The circle next to Buy milk is still empty." },
+    };
+    expect(formatRunsForCli([run])).toBe(
+      [
+        "test complete-task: failed 4/4",
+        "  failed at step 4: Verify Buy milk shows as done",
+        "  reason: The circle next to Buy milk is still empty.",
+        '  ::revyl{task="3c5cfe81-dd1e-4fab-a209-5b34f4061939"}',
+      ].join("\n"),
+    );
+  });
+});
+
 describe("formatRunsForCli for builds", () => {
   it("tells a failed test step from a broken build, with the job and profile", () => {
     const text = formatRunsForCli([

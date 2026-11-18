@@ -20,7 +20,7 @@ import {
   detectTaskIds,
   type DetectedKind,
 } from "./detect";
-import { isActive, type Run, type RunKind, type Session, type SessionEnd } from "./model";
+import { isActive, type Run, type RunFailure, type RunKind, type Session, type SessionEnd } from "./model";
 import { mapHistory, mapStatus, mapTestReport, mapWorkflowStatus, num, obj, arr, str, bool } from "./revyl-json";
 import { PINNED_SCOPE, scopeOf, type Store } from "./store";
 
@@ -432,7 +432,11 @@ export class Tracker {
       const updates = new Map<string, Run>();
       for (const run of active) {
         if (signal?.aborted) return;
-        const next = run.taskId === null ? await this.bind(run, runs, updates) : await this.poll(run);
+        let next = run.taskId === null ? await this.bind(run, runs, updates) : await this.poll(run);
+        // A test that just failed: ask Revyl once which step it stopped at, and why.
+        if (next.kind === "test" && next.status === "failed" && next.failure == null && next.taskId !== null) {
+          next = { ...next, failure: await this.failureOf(next.taskId) };
+        }
         if (!sameRun(run, next)) updates.set(run.key, next);
       }
       if (updates.size > 0) {
@@ -582,6 +586,19 @@ export class Tracker {
       };
     } catch (error) {
       return this.miss(run, error);
+    }
+  }
+
+  /** The failing step of a finished test run, from `revyl run summary`. */
+  async failureOf(taskId: string): Promise<RunFailure | null> {
+    try {
+      const root = obj(await this.cli.json(["run", "summary", taskId], { cwd: this.host.deviceCwd, timeoutMs: 30_000 }));
+      const index = num(root.failed_step_index);
+      if (index === null) return null;
+      const step = arr(root.steps).map(obj).find((candidate) => num(candidate.index) === index) ?? null;
+      return { step: index + 1, description: str(step?.description), reason: str(step?.status_reason) };
+    } catch {
+      return null;
     }
   }
 

@@ -35,6 +35,14 @@ export const runChildSchema = z.object({
 });
 export type RunChild = z.infer<typeof runChildSchema>;
 
+export const runFailureSchema = z.object({
+  /** 1-based step number. */
+  step: z.number(),
+  description: z.string().nullable(),
+  reason: z.string().nullable(),
+});
+export type RunFailure = z.infer<typeof runFailureSchema>;
+
 export const runSchema = z.object({
   /** Stable local key: the task id once known, else `pending:<n>`. */
   key: z.string(),
@@ -69,6 +77,8 @@ export const runSchema = z.object({
   // Builds, added in 0.2.5: the build profile, and the step that failed.
   profile: z.string().nullable().optional(),
   failedStep: z.string().nullable().optional(),
+  /** Tests, added in 0.2.7: the step a failed run stopped at, and Revyl's reason. */
+  failure: runFailureSchema.nullable().optional(),
 });
 export type Run = z.infer<typeof runSchema>;
 

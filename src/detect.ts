@@ -254,11 +254,14 @@ export function detectMcpRun(item: unknown): DetectedRun | null {
     }
     return null;
   };
-  if (toolName === "run_test") {
+  // Revyl's MCP core and full profiles run through manage_tests and
+  // manage_workflows with action "run".
+  const action = typeof args.action === "string" ? args.action : null;
+  if (toolName === "run_test" || (toolName === "manage_tests" && action === "run")) {
     const name = pick("test_name", "name", "test", "test_id");
     return name === null ? null : { kind: "test", name, chdir: pick("project_dir") };
   }
-  if (toolName === "run_workflow") {
+  if (toolName === "run_workflow" || (toolName === "manage_workflows" && action === "run")) {
     const name = pick("workflow_name", "name", "workflow", "workflow_id");
     return name === null ? null : { kind: "workflow", name, chdir: pick("project_dir") };
   }

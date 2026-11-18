@@ -75,7 +75,14 @@ export function formatRunsForCli(runs: readonly Run[]): string {
       }
       const head = `${run.kind} ${run.name ?? "(unnamed)"}: ${STATUS_WORD[run.status]}${progress}`;
       const directive = run.taskId === null ? "  (no task id yet)" : `  ::revyl{task="${run.taskId}"}`;
-      return `${head}\n${directive}`;
+      const failure =
+        run.status === "failed" && run.failure
+          ? [
+              `  failed at step ${run.failure.step}${run.failure.description ? `: ${run.failure.description}` : ""}`,
+              ...(run.failure.reason ? [`  reason: ${run.failure.reason.replace(/\s+/g, " ").slice(0, 300)}`] : []),
+            ]
+          : [];
+      return [head, ...failure, directive].join("\n");
     })
     .join("\n");
 }

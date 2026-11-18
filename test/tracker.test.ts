@@ -239,6 +239,23 @@ describe("Tracker", () => {
     expect(await t.store.activeScopes()).toEqual([]);
   });
 
+  it("asks Revyl once which step a failed test stopped at", async () => {
+    const t = setup();
+    await t.tracker.recordStart("thr", "test", TASK, "test-a");
+    t.responses.set("test history test-a", historyWith("failed", 3, false));
+    t.responses.set(`run summary ${TASK}`, {
+      failed_step_index: 2,
+      steps: [
+        { index: 0, description: "Open the list", status: "passed" },
+        { index: 1, description: "Tap add", status: "passed" },
+        { index: 2, description: "Check the new task", status: "failed", status_reason: "No new row appeared." },
+      ],
+    });
+    await t.tracker.tick();
+    expect((await t.store.runs("thr"))[0]).toMatchObject({ status: "failed", failure: { step: 3, description: "Check the new task", reason: "No new row appeared." } });
+    expect(t.calls.filter((call) => call[0] === "run")).toHaveLength(1);
+  });
+
   it("keeps the step a failed build stopped at", async () => {
     const t = setup();
     const job = "88888888-8888-4888-8888-888888888888";

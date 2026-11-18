@@ -170,6 +170,24 @@ describe("handleProxy", () => {
   });
 });
 
+describe("refused outright", () => {
+  it("keeps share links, explorations and cloud Macs away from agents", async () => {
+    const { deps, calls } = setup();
+    const refused = [
+      ["POST", "/api/v1/report/async-run/generate_shareable_report_link_by_task"],
+      ["POST", "/api/v1/report/async-run/generate_shareable_report_link_by_session"],
+      ["POST", "/api/v1/workflows/share/generate_shareable_link"],
+      ["POST", "/api/v1/explorations"],
+      ["POST", "/api/v1/computer-runs"],
+      ["DELETE", `/api/v1/computer-runs/${THEIRS}`],
+    ];
+    for (const [method, path] of refused) expect((await handleProxy(request(path!, method, method === "GET" ? undefined : {}), deps)).status, path).toBe(403);
+    expect(calls).toHaveLength(0);
+    // Reading stays open.
+    expect((await handleProxy(request("/api/v1/computer-runs"), deps)).status).toBe(200);
+  });
+});
+
 describe("older CLIs", () => {
   it("still reads a build's app and profile from the top level", async () => {
     const { deps, recorded } = setup({}, { "/api/v1/apps/remote": { build_job_id: "55555555-5555-4555-8555-555555555555" } });

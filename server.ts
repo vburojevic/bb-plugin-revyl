@@ -24,7 +24,7 @@ import { REALTIME_RUNS, REALTIME_THREAD_STATE, rpcContract } from "./src/contrac
 import { endedLabel } from "./src/shared";
 import { isActive, type CliStatus, type Run, type RunKind, type Session, type SessionEnd } from "./src/model";
 import { RevylCli, RevylCliError, firstLine, locateRevyl } from "./src/revyl-cli";
-import { mapHistory, mapTestReport, mapWorkflowStatus, num, obj, str } from "./src/revyl-json";
+import { arr, mapHistory, mapTestReport, mapWorkflowStatus, num, obj, str } from "./src/revyl-json";
 import { PAGE_SCOPE, PINNED_SCOPE, Store, scopeOf } from "./src/store";
 import { EVENT_PAGE, TICK_MS, Tracker, newRun, type ThreadEventRow } from "./src/tracker";
 import { BASE_INSTRUCTIONS, CAPS, deviceDirective, formatRunsForCli, testOnRevylInstructions } from "./src/agent-text";
@@ -170,6 +170,29 @@ export default async function plugin(bb: BbPluginApi) {
     );
     publishRuns(threadId);
   };
+
+  /**
+   * Stop a device and wait until Revyl confirms it. `revyl device stop` waits
+   * a while and can still answer `stopped: false` while cleanup runs; a
+   * device marked ended too early would keep using minutes unseen.
+   */
+  const stopDevice = async (sessionId: string): Promise<boolean> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const root = obj(await cli.json(["device", "stop", "--session-id", sessionId], { cwd: deviceCwd, timeoutMs: 60_000 }));
+        if (root.stopped !== false) return true;
+      } catch (error) {
+        if (error instanceof RevylCliError && /terminal state|not found|no session/i.test(error.message)) return true;
+        if (attempt === 2) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+    }
+    return false;
+  };
+
+  // Read-only Revyl facts the UI shows often, cached briefly.
+  let billingCache: { at: number; value: Promise<Record<string, unknown> | null> } | null = null;
+  let targetsCache: { at: number; value: Promise<Record<string, unknown>> } | null = null;
 
   /** Something the agent did on one of its devices, as the proxy saw it. */
   const recordDeviceAction = async (
@@ -596,7 +619,108 @@ export default async function plugin(bb: BbPluginApi) {
       return { n: still.n, takenAt: still.takenAt, dataUrl: `data:image/png;base64,${still.png.toString("base64")}` };
     },
 
-    session_start: async ({ threadId, appId }) => {
+    billing: async () => {
+      if (billingCache === null || Date.now() - billingCache.at > 5 * 60_000) {
+        billingCache = { at: Date.now(), value: cli.json(["billing", "status"], { cwd: deviceCwd, timeoutMs: 30_000 }).then(obj, () => null) };
+      }
+      const root = await billingCache.value;
+      if (root === null) return null;
+      const minutes = obj(root.free_minutes);
+      const iosRate = arr(root.rates).map(obj).find((rate) => str(rate.platform)?.toLowerCase() === "ios") ?? null;
+      return {
+        planName: str(root.plan_name) ?? str(root.plan),
+        iosMinutesLeft: num(minutes.ios_left),
+        iosMinutesTotal: num(minutes.ios_total),
+        androidMinutesLeft: num(minutes.android_left),
+        usdPerMinute: num(iosRate?.usd_per_minute),
+        minutesThisPeriod: num(root.minutes_this_period),
+        periodEnd: str(root.period_end),
+        concurrentDevices: num(root.concurrent_devices),
+        billingUrl: str(root.billing_url),
+      };
+    },
+
+    device_targets: async () => {
+      if (targetsCache === null || Date.now() - targetsCache.at > 60 * 60_000) {
+        targetsCache = { at: Date.now(), value: cli.json(["device", "targets"], { cwd: deviceCwd, timeoutMs: 30_000 }).then(obj, () => ({})) };
+      }
+      const root = await targetsCache.value;
+      // Revyl spells these keys Model and Runtime.
+      const list = (value: unknown) =>
+        arr(value)
+          .map(obj)
+          .map((target) => ({ model: str(target.Model) ?? str(target.model), os: str(target.Runtime) ?? str(target.runtime) }))
+          .filter((target): target is { model: string; os: string } => target.model !== null && target.os !== null);
+      return { ios: list(root.ios), android: list(root.android) };
+    },
+
+    run_diagnostics: async ({ taskId }) => {
+      const notes: { perf: string | null; logs: string | null; network: string | null } = { perf: null, logs: null, network: null };
+      const quiet = (error: unknown) => (error instanceof Error ? firstLine(error.message) : String(error)).replace(/^Error:\s*/, "");
+      const [perfRaw, logsRaw, networkRaw] = await Promise.all([
+        cli.json(["run", "perf", taskId], { cwd: deviceCwd, timeoutMs: 45_000 }).then(obj, (error: unknown) => ((notes.perf = quiet(error)), null)),
+        cli
+          .json(["run", "logs", taskId, "--level", "warn,error", "--tail", "60"], { cwd: deviceCwd, timeoutMs: 45_000 })
+          .then(obj, (error: unknown) => ((notes.logs = quiet(error)), null)),
+        cli
+          .json(["run", "network", taskId, "--failed", "--compact"], { cwd: deviceCwd, timeoutMs: 45_000 })
+          .then(obj, (error: unknown) => ((notes.network = quiet(error)), null)),
+      ]);
+      const summary = perfRaw === null ? null : obj(perfRaw.summary);
+      const perf =
+        summary === null
+          ? null
+          : {
+              avgCpu: num(summary.avg_cpu_percent),
+              peakCpu: num(summary.peak_cpu_percent),
+              avgMemoryMb: num(summary.avg_memory_rss_kb) === null ? null : Math.round(num(summary.avg_memory_rss_kb)! / 1024),
+              peakMemoryMb: num(summary.peak_memory_rss_kb) === null ? null : Math.round(num(summary.peak_memory_rss_kb)! / 1024),
+              avgFps: num(summary.avg_fps),
+              minFps: num(summary.min_fps),
+            };
+      // Log lines can carry tokens: shown on request, never stored, clipped.
+      const logs =
+        logsRaw === null
+          ? null
+          : {
+              lines: arr(logsRaw.lines)
+                .map(obj)
+                .slice(-60)
+                .map((line) => ({ level: str(line.Level) ?? str(line.level) ?? "", text: (str(line.Raw) ?? str(line.raw) ?? "").slice(0, 400) })),
+              matched: num(logsRaw.matched) ?? 0,
+              total: num(logsRaw.total),
+            };
+      const requestList = networkRaw === null ? [] : arr(networkRaw.requests ?? networkRaw.items ?? networkRaw.entries).map(obj);
+      const network =
+        networkRaw === null
+          ? null
+          : {
+              total: num(networkRaw.total_requests) ?? num(networkRaw.total),
+              failed: num(networkRaw.failed_requests) ?? num(networkRaw.failed),
+              requests: requestList.slice(0, 30).map((request) => {
+                let host: string | null = str(request.host);
+                let path: string | null = null;
+                try {
+                  const url = new URL(str(request.url) ?? "");
+                  host ??= url.host;
+                  path = url.pathname;
+                } catch {
+                  path = str(request.path);
+                }
+                return {
+                  method: str(request.method),
+                  host,
+                  path,
+                  status: num(request.status_code) ?? num(request.status),
+                  durationMs: num(request.duration_ms),
+                };
+              }),
+            };
+      const partial = Boolean(perfRaw?.partial) || Boolean(logsRaw?.partial) || Boolean(networkRaw?.partial);
+      return { perf, logs, network, notes, partial };
+    },
+
+    session_start: async ({ threadId, appId, deviceModel, osVersion }) => {
       const live = (await store.sessions(threadId)).filter((session) => session.stoppedAt === null).length;
       if (live >= CAPS.devices) throw refuse("conflict", `This thread already runs ${live} Revyl device, its limit. Stop it first.`);
       const org = await catalog.orgCatalog().catch(cliError);
@@ -607,7 +731,19 @@ export default async function plugin(bb: BbPluginApi) {
       try {
         raw = obj(
           await cli.json(
-            ["device", "start", "--platform", platform, "--app-id", appId, "--open=false", "--timeout", String(idleSeconds)],
+            [
+              "device",
+              "start",
+              "--platform",
+              platform,
+              "--app-id",
+              appId,
+              "--open=false",
+              "--timeout",
+              String(idleSeconds),
+              ...(deviceModel ? ["--device-model", deviceModel] : []),
+              ...(osVersion ? ["--os-version", osVersion] : []),
+            ],
             { cwd: deviceCwd, timeoutMs: 180_000 },
           ),
         );
@@ -638,13 +774,13 @@ export default async function plugin(bb: BbPluginApi) {
     },
 
     session_stop: async ({ threadId, sessionId }) => {
-      let result: Awaited<ReturnType<typeof cli.exec>>;
+      let stopped: boolean;
       try {
-        result = await cli.exec(["device", "stop", "--session-id", sessionId], { cwd: deviceCwd, timeoutMs: 30_000 });
+        stopped = await stopDevice(sessionId);
       } catch (error) {
         return cliError(error);
       }
-      if (result.exitCode !== 0) throw refuse("conflict", firstLine(result.stderr || result.stdout) || "Revyl did not stop the device.");
+      if (!stopped) throw refuse("conflict", "Revyl is still stopping the device. Try Stop again in a moment.");
       await endSession(threadId, new Set([sessionId]), "person");
       return { stopped: true };
     },
@@ -654,17 +790,37 @@ export default async function plugin(bb: BbPluginApi) {
         throw refuse("conflict", "The agent is working in this thread. Touch input unlocks when it goes idle.");
       }
       const target = ["--session-id", sessionId];
-      const args =
-        action.type === "tap"
-          ? ["device", "tap", ...target, "--x", String(action.x), "--y", String(action.y)]
-          : action.type === "swipe"
-            ? ["device", "swipe", ...target, "--direction", action.direction, "--x", String(action.x), "--y", String(action.y)]
-            : action.type === "type"
-              ? ["device", "type", ...target, "--x", String(action.x), "--y", String(action.y), "--text", action.text]
-              : ["device", action.type, ...target];
+      // Typed text goes through the environment (`--text-env`), so it never shows in the process list.
+      const env: Record<string, string> = {};
+      const steps: string[][] = [];
+      switch (action.type) {
+        case "tap":
+          steps.push(["device", "tap", ...target, "--x", String(action.x), "--y", String(action.y)]);
+          break;
+        case "swipe":
+          steps.push(["device", "swipe", ...target, "--direction", action.direction, "--x", String(action.x), "--y", String(action.y)]);
+          break;
+        case "type":
+          env.BB_REVYL_TYPED = action.text;
+          // Typing adds to what the field holds, like a keyboard.
+          steps.push(["device", "type", ...target, "--x", String(action.x), "--y", String(action.y), "--text-env", "BB_REVYL_TYPED", "--clear-first=false"]);
+          break;
+        case "key":
+          steps.push(["device", "key", action.key, ...target]);
+          break;
+        case "navigate":
+          steps.push(["device", "navigate", ...target, "--url", action.url]);
+          break;
+        case "relaunch":
+          steps.push(["device", "kill-app", ...target], ["device", "launch", ...target]);
+          break;
+        default:
+          steps.push(["device", action.type, ...target]);
+      }
       try {
-        const raw = obj(await cli.json(args, { cwd: deviceCwd, timeoutMs: 20_000 }));
-        return { ok: raw.success !== false, latencyMs: num(raw.latency_ms) };
+        let last: Record<string, unknown> = {};
+        for (const args of steps) last = obj(await cli.json(args, { cwd: deviceCwd, timeoutMs: 30_000, env }));
+        return { ok: last.success !== false, latencyMs: num(last.latency_ms) };
       } catch (error) {
         return cliError(error);
       }
@@ -692,8 +848,7 @@ export default async function plugin(bb: BbPluginApi) {
       if (result?.exitCode === 0) done.add(run.taskId!);
     }
     for (const session of live) {
-      const result = await cli.exec(["device", "stop", "--session-id", session.sessionId], { cwd: deviceCwd, timeoutMs: 30_000 }).catch(() => null);
-      if (result?.exitCode === 0) done.add(session.sessionId);
+      if (await stopDevice(session.sessionId).catch(() => false)) done.add(session.sessionId);
     }
     if (done.size === 0) return;
     const now = Date.now();

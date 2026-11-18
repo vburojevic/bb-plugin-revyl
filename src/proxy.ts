@@ -137,6 +137,30 @@ const NOT_IDS: ReadonlySet<string> = new Set([
 const SESSION_LISTS: ReadonlySet<string> = new Set(["/api/v1/execution/device-sessions/active", "/api/v1/execution/device-sessions/history"]);
 const SESSION_ID_FIELDS = ["id", "session_id", "workflow_run_id"] as const;
 
+/**
+ * What a Test on Revyl thread's agent may not do at all. Share links work for
+ * anyone and never expire by default, so they are the person's to make.
+ * Explorations and cloud Macs use minutes outside the thread's limits and are
+ * not stopped when the thread is archived.
+ */
+const REFUSED: Array<{ pattern: RegExp; methods: ReadonlySet<string> | null; message: string }> = [
+  {
+    pattern: /^\/api\/v1\/(report\/async-run\/generate_shareable_report_link_by_(task|session)|workflows\/share\/generate_shareable_link)(\/|$)/,
+    methods: null,
+    message: "Share links are made by the person in bb, not by an agent: a public link works for anyone and never expires.",
+  },
+  {
+    pattern: /^\/api\/v1\/explorations(\/|$)/,
+    methods: new Set(["POST", "PUT", "PATCH", "DELETE"]),
+    message: "Revyl explorations are not available in a Test on Revyl thread: they use device minutes outside the thread's limits.",
+  },
+  {
+    pattern: /^\/api\/v1\/computer-runs(\/|$)/,
+    methods: new Set(["POST", "PUT", "PATCH", "DELETE"]),
+    message: "Revyl's cloud Macs are not available in a Test on Revyl thread.",
+  },
+];
+
 const START_DEVICE = "/api/v1/execution/start_device";
 const START_TEST = "/api/v1/execution/api/execute_test_id_async";
 const START_WORKFLOW = "/api/v1/workflow-executions";
@@ -202,6 +226,10 @@ export async function handleProxy(request: Request, deps: ProxyDeps): Promise<Re
   const method = request.method.toUpperCase();
   const raw = method === "GET" || method === "HEAD" ? null : new Uint8Array(await request.arrayBuffer());
   const body = raw !== null && raw.length > 0 ? raw : null;
+
+  for (const rule of REFUSED) {
+    if (rule.pattern.test(target.path) && (rule.methods === null || rule.methods.has(method))) return refuse(403, rule.message);
+  }
 
   for (const rule of NOT_IDS.has(target.path) ? [] : OWNED) {
     const match = rule.pattern.exec(target.path);

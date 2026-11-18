@@ -140,8 +140,73 @@ export const rpcContract = defineRpcContract({
     input: z.object({ threadId: id, sessionId: uuid, n: z.number().int().positive().nullable(), pin: z.boolean().optional() }).strict(),
     output: z.object({ n: z.number(), takenAt: z.number(), dataUrl: z.string() }).nullable(),
   },
+  /** The Revyl plan: minutes left and what a minute costs. Cached for a few minutes. */
+  billing: {
+    input: z.object({}).strict(),
+    output: z
+      .object({
+        planName: z.string().nullable(),
+        iosMinutesLeft: z.number().nullable(),
+        iosMinutesTotal: z.number().nullable(),
+        androidMinutesLeft: z.number().nullable(),
+        usdPerMinute: z.number().nullable(),
+        minutesThisPeriod: z.number().nullable(),
+        periodEnd: z.string().nullable(),
+        concurrentDevices: z.number().nullable(),
+        billingUrl: z.string().nullable(),
+      })
+      .nullable(),
+  },
+  /** Device models and OS versions a device can start on. */
+  device_targets: {
+    input: z.object({}).strict(),
+    output: z.object({
+      ios: z.array(z.object({ model: z.string(), os: z.string() })),
+      android: z.array(z.object({ model: z.string(), os: z.string() })),
+    }),
+  },
+  /** A run's performance, warning and error logs, and network, read on demand and never stored. */
+  run_diagnostics: {
+    input: z.object({ taskId: uuid }).strict(),
+    output: z.object({
+      perf: z
+        .object({
+          avgCpu: z.number().nullable(),
+          peakCpu: z.number().nullable(),
+          avgMemoryMb: z.number().nullable(),
+          peakMemoryMb: z.number().nullable(),
+          avgFps: z.number().nullable(),
+          minFps: z.number().nullable(),
+        })
+        .nullable(),
+      logs: z
+        .object({
+          lines: z.array(z.object({ level: z.string(), text: z.string() })),
+          matched: z.number(),
+          total: z.number().nullable(),
+        })
+        .nullable(),
+      network: z
+        .object({
+          total: z.number().nullable(),
+          failed: z.number().nullable(),
+          requests: z.array(z.object({ method: z.string().nullable(), host: z.string().nullable(), path: z.string().nullable(), status: z.number().nullable(), durationMs: z.number().nullable() })),
+        })
+        .nullable(),
+      /** Why a section is empty, by section. */
+      notes: z.object({ perf: z.string().nullable(), logs: z.string().nullable(), network: z.string().nullable() }),
+      partial: z.boolean(),
+    }),
+  },
   session_start: {
-    input: z.object({ threadId: id, appId: uuid }).strict(),
+    input: z
+      .object({
+        threadId: id,
+        appId: uuid,
+        deviceModel: z.string().min(1).max(80).optional(),
+        osVersion: z.string().min(1).max(40).optional(),
+      })
+      .strict(),
     output: sessionSchema,
   },
   session_stop: {
@@ -170,6 +235,9 @@ export const rpcContract = defineRpcContract({
           }),
           z.object({ type: z.literal("home") }),
           z.object({ type: z.literal("back") }),
+          z.object({ type: z.literal("key"), key: z.enum(["ENTER", "BACKSPACE"]) }),
+          z.object({ type: z.literal("navigate"), url: z.string().min(3).max(2000) }),
+          z.object({ type: z.literal("relaunch") }),
         ]),
       })
       .strict(),
