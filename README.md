@@ -11,7 +11,7 @@ Turn on Test on Revyl for a [bb](https://getbb.app) thread. Its agent builds on 
 <a href="https://github.com/vburojevic/bb-plugin-revyl/releases/latest"><img src="https://img.shields.io/github/v/release/vburojevic/bb-plugin-revyl?style=flat-square&color=57606a&label=release" alt="Latest release"></a>
 <a href="https://getbb.app"><img src="https://img.shields.io/badge/bb-%E2%89%A5%200.49-57606a?style=flat-square" alt="Requires bb 0.49 or newer"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-57606a?style=flat-square" alt="MIT license"></a>
-<a href="https://github.com/get-bb/marketplace"><img src="https://img.shields.io/badge/BB%20Community-marketplace-57606a?style=flat-square" alt="Submitted to the BB Community marketplace"></a>
+<a href="https://github.com/get-bb/marketplace"><img src="https://img.shields.io/badge/BB%20Community-marketplace-57606a?style=flat-square" alt="Listed in the BB Community marketplace"></a>
 
 <sub><a href="#see-it-work">See it work</a> · <a href="#install">Install</a> · <a href="#highlights">Highlights</a> · <a href="#how-it-works">How it works</a> · <a href="#reference">Reference</a></sub>
 
@@ -55,6 +55,14 @@ Nothing runs on your Mac, the Revyl key never reaches the agent, and archiving t
 </table>
 
 ## Install
+
+It is listed in the [BB Community marketplace](https://github.com/get-bb/marketplace), so bb installs it by name:
+
+```sh
+bb plugin install revyl
+```
+
+Or straight from this repository:
 
 ```sh
 bb plugin install git:https://github.com/vburojevic/bb-plugin-revyl.git
